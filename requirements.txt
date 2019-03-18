@@ -1,0 +1,7 @@
+flask
+tornado
+Flask-Extension
+Flask-MongoAlchemy
+Flask-Session
+flask-bcrypt
+redis

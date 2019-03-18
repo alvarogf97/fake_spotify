@@ -1,0 +1,7 @@
+SERVER_PORT = "5000"
+DATABASE_DOMAIN = "localhost"
+DATABASE_PORT = "27017"
+DATABASE_NAME = "music_server"
+DATABASE_USER = "root"
+DATABASE_PASSWORD = "root"
+SESSION_TYPE = "redis"
