@@ -5,3 +5,4 @@ Flask-MongoAlchemy
 Flask-Session
 flask-bcrypt
 redis
+werkzeug

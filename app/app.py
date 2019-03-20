@@ -24,12 +24,9 @@ db = MongoAlchemy(app)
 bcrypt = Bcrypt(app)
 
 
-@app.route('/')
-@login_required
-def hello_world():
-    return 'Hello World!'
-
-
+########################################################
+#                      USERS ROUTES                    #
+########################################################
 @app.route('/login', methods=['POST'])
 def login():
     from app.models.user import User
@@ -72,6 +69,9 @@ def register():
     return result
 
 
+########################################################
+#                     GROUPS ROUTES                    #
+########################################################
 @app.route('/group/create', methods=['POST'])
 @login_required
 def create_group():
@@ -89,6 +89,20 @@ def create_group():
     return result
 
 
+@app.route('/group/<string:group_name>', methods=['GET'])
+@login_required
+def get_group_albums(group_name):
+    from app.models.group import Album
+    albums = Album.get_group_albums(group_name)
+    if albums:
+        return jsonify(status=True, albums=Album.parse_list(albums))
+    else:
+        return jsonify(status=False, error='GROUP DOES NOT EXIST')
+
+
+########################################################
+#                     ALBUM ROUTES                     #
+########################################################
 @app.route('/group/album/create', methods=['POST'])
 @login_required
 def create_album():
@@ -107,13 +121,35 @@ def create_album():
     return result
 
 
-@app.route('/group/', methods=['GET'])
+@app.route('/group/<string:group_name>/<string:album_name>', methods=['GET'])
 @login_required
-def get_group_albums():
-    from app.models.group import Album
-    albums = Album.get_group_albums(request.args.get('group_name'))
-    if albums:
-        logging.debug(albums)
-        return jsonify(status=True, albums=Album.parse_list(albums))
+def get_album_songs(group_name, album_name):
+    from app.models.group import Song
+    songs = Song.get_album_songs(group_name, album_name)
+    if songs:
+        return jsonify(status=True, albums=Song.parse_list(songs))
     else:
-        return jsonify(status=False, error='GROUP DOES NOT EXIST')
+        return jsonify(status=False, error='ALBUM DOES NOT EXIST')
+
+
+########################################################
+#                      SONG ROUTES                     #
+########################################################
+@app.route('/group/album/song/create', methods=['POST'])
+@login_required
+def create_song():
+    from app.models.group import Song
+
+    group_name = request.form.get('group_name')
+    album_name = request.form.get('album_name')
+    song_name = request.form.get('name')
+    song_file = request.files.get('file')
+    if album_name is None or group_name is None or song_name is None or song_file is None:
+        result = jsonify(status=False, error="NOT ENOUGH ARGUMENTS")
+    else:
+        new_song = Song.make(song_name, album_name, group_name, song_file)
+        if new_song is None:
+            result = jsonify(status=False, error="SONG ALREADY EXISTS")
+        else:
+            result = jsonify(status=True)
+    return result

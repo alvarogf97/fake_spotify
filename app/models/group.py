@@ -1,6 +1,8 @@
 import os
+import logging
 from app.app import db
-from app.utils.string_utils import crop_withespaces
+from app.utils.string_utils import crop_withespaces, allowed_file
+from werkzeug.utils import secure_filename
 
 
 class Group(db.Document):
@@ -49,7 +51,7 @@ class Album(db.Document):
     def get(name: str, group_name: str):
         group = Group.get(group_name)
         if group:
-            return Album.query.filter(Album.name == name, Album.group == group)
+            return Album.query.filter(Album.name == name, Album.group == group).first()
         else:
             return None
 
@@ -72,4 +74,50 @@ class Album(db.Document):
         json_result = dict()
         json_result['name'] = self.name
         json_result['group'] = self.group.json()
+        return json_result
+
+
+class Song(db.Document):
+
+    name = db.StringField()
+    album = db.DocumentField(Album)
+    path = db.StringField()
+
+    @staticmethod
+    def make(name: str, album_name, group_name, song_file):
+        album = Album.get(album_name, group_name)
+        new_song = None
+        if album is not None and Song.query.filter(Song.name == name, Song.album == album).first() is None:
+            logging.debug(song_file.filename)
+            if allowed_file(song_file.filename):
+                logging.debug("rr")
+                path = album.path + '/' + secure_filename(song_file.filename)
+                new_song = Song(name=name, album=album, path=path)
+                new_song.save()
+                song_file.save(path)
+        return new_song
+
+    @staticmethod
+    def get(path: str):
+        return Album.query.filter(Song.path == path).first()
+
+    @staticmethod
+    def get_album_songs(group_name: str, album_name: str):
+        album = Album.get(album_name, group_name)
+        if album:
+            return Song.query.filter(Song.album == album).all()
+        else:
+            return None
+
+    @staticmethod
+    def parse_list(song_list):
+        result = []
+        for song in song_list:
+            result.append(song.json())
+        return result
+
+    def json(self):
+        json_result = dict()
+        json_result['name'] = self.name
+        json_result['path'] = self.path
         return json_result
