@@ -1,11 +1,11 @@
 import logging
-from flask import Flask, session, request, jsonify, abort
+from flask import Flask, session, request, jsonify
 from flask_session import Session
 from flask_bcrypt import Bcrypt
 from flask_mongoalchemy import MongoAlchemy
 from app.decorators import login_required
 from app.server_configuration import DATABASE_NAME, DATABASE_DOMAIN, DATABASE_PORT
-from app.server_configuration import DATABASE_USER, DATABASE_PASSWORD
+# from app.server_configuration import DATABASE_USER, DATABASE_PASSWORD
 from app.server_configuration import SESSION_TYPE
 
 
@@ -107,13 +107,13 @@ def create_album():
     return result
 
 
-@app.route('/group/<string:group_name>', methods=['GET'])
+@app.route('/group/', methods=['GET'])
 @login_required
-def get_group_albums(group_name):
+def get_group_albums():
     from app.models.group import Album
-    albums = Album.get_group_albums(group_name)
+    albums = Album.get_group_albums(request.args.get('group_name'))
     if albums:
         logging.debug(albums)
-        return jsonify(status=True, albums=albums.jsonify())
+        return jsonify(status=True, albums=Album.parse_list(albums))
     else:
         return jsonify(status=False, error='GROUP DOES NOT EXIST')
