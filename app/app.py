@@ -1,5 +1,6 @@
 import logging
-from flask import Flask, session, request, jsonify
+import os
+from flask import Flask, session, request, jsonify, Response
 from flask_session import Session
 from flask_bcrypt import Bcrypt
 from flask_mongoalchemy import MongoAlchemy
@@ -22,6 +23,7 @@ app.config['MONGOALCHEMY_PORT'] = DATABASE_PORT
 # app.config['MONGOALCHEMY_PASSWORD'] = DATABASE_PASSWORD
 db = MongoAlchemy(app)
 bcrypt = Bcrypt(app)
+music_path = os.path.dirname(os.path.abspath(__file__)) + '/../music'
 
 
 ########################################################
@@ -89,6 +91,16 @@ def create_group():
     return result
 
 
+@app.route('/group', methods=['GET'])
+@login_required
+def get_groups():
+    from app.models.group import Group
+    offset = request.args.get('offset')
+    if offset is None:
+        offset = 0
+    return jsonify(groups=Group.parse_list(Group.get_groups(offset)), status=True)
+
+
 @app.route('/group/<string:group_name>', methods=['GET'])
 @login_required
 def get_group_albums(group_name):
@@ -127,7 +139,7 @@ def get_album_songs(group_name, album_name):
     from app.models.group import Song
     songs = Song.get_album_songs(group_name, album_name)
     if songs:
-        return jsonify(status=True, albums=Song.parse_list(songs))
+        return jsonify(status=True, songs=Song.parse_list(songs))
     else:
         return jsonify(status=False, error='ALBUM DOES NOT EXIST')
 
@@ -137,7 +149,7 @@ def get_album_songs(group_name, album_name):
 ########################################################
 @app.route('/group/album/song/create', methods=['POST'])
 @login_required
-def create_song():
+def upload_song():
     from app.models.group import Song
 
     group_name = request.form.get('group_name')
@@ -153,3 +165,22 @@ def create_song():
         else:
             result = jsonify(status=True)
     return result
+
+
+@app.route('/group/<string:group_name>/<string:album_name>/<string:song_name>')
+def listen_song(group_name, album_name, song_name):
+    from app.models.group import Song
+
+    song = Song.get(song_name, album_name, group_name)
+    if song:
+        def generate():
+            count = 1
+            with open(song.path, "rb") as f:
+                data = f.read(1024)
+                while data:
+                    yield data
+                    data = f.read(1024)
+                    count += 1
+        return Response(generate(), mimetype="audio/mp3")
+    else:
+        return jsonify(status=False, error='SONG DOES NOT EXIST')
