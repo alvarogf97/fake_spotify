@@ -1,20 +1,27 @@
 import logging
 import os
+import redis
 from flask import Flask, session, request, jsonify, Response
 from flask_session import Session
+from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from flask_mongoalchemy import MongoAlchemy
 from app.decorators import login_required
 from app.server_configuration import DATABASE_NAME, DATABASE_DOMAIN, DATABASE_PORT
 # from app.server_configuration import DATABASE_USER, DATABASE_PASSWORD
 from app.server_configuration import SESSION_TYPE
-
+from app.session import RedisSessionInterface
 
 app = Flask(__name__)
 
+CORS(app, resources={r"/*": {"origins": "*"}}, headers=['Content-Type', 'Set-Cookie'], supports_credentials=True)
+
 app.secret_key = '9W[C|i8M9iJALx8UO1nU'
 app.config['SESSION_TYPE'] = SESSION_TYPE
+app.config['PERMANENT_SESSION_LIFETIME'] = 60
+app.config['SESSION_REDIS'] = redis.from_url('redis://localhost:6379')
 Session(app)
+app.session_interface = RedisSessionInterface()
 
 app.config['MONGOALCHEMY_DATABASE'] = DATABASE_NAME
 app.config['MONGOALCHEMY_SERVER'] = DATABASE_DOMAIN
@@ -34,8 +41,12 @@ def login():
     from app.models.user import User
 
     session.pop('current_user', None)
-    name = request.form.get('name')
-    password = request.form.get('password')
+    if request.get_json() is None:
+        name = request.form.get('name')
+        password = request.form.get('password')
+    else:
+        name = request.get_json().get('name')
+        password = request.get_json().get('password')
     if name is None or password is None:
         result = jsonify(status=False, error="NOT ENOUGH ARGUMENTS")
     else:
@@ -43,8 +54,9 @@ def login():
         if user is None:
             result = jsonify(status=False, error="WRONG USERNAME/PASSWORD")
         else:
-            result = jsonify(status=True, name=user.name)
             session['current_user'] = user.name
+            result = jsonify(status=True, name=user.name)
+    logging.debug("before cookie")
     return result
 
 

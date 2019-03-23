@@ -1,5 +1,3 @@
-import logging
-
 ALLOWED_EXTENSIONS = {'mp3', 'wma'}
 
 

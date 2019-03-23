@@ -1,5 +1,6 @@
 from functools import wraps
-from flask import session, abort
+from flask import session, abort, request
+import logging
 
 
 def login_required(f):
