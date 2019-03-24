@@ -56,7 +56,6 @@ def login():
         else:
             session['current_user'] = user.name
             result = jsonify(status=True, name=user.name)
-    logging.debug("before cookie")
     return result
 
 

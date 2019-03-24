@@ -37,7 +37,6 @@ class RedisSessionInterface(SessionInterface):
         return timedelta(minutes=60)
 
     def open_session(self, app, request):
-        logging.debug(request.cookies)
         sid = request.cookies.get(app.session_cookie_name)
         if not sid:
             sid = self.generate_sid()
@@ -49,7 +48,6 @@ class RedisSessionInterface(SessionInterface):
         return self.session_class(sid=sid, new=True)
 
     def save_session(self, app, session, response):
-        logging.debug(session)
         domain = self.get_cookie_domain(app)
         if not session:
             self.redis.delete(self.prefix + session.sid)
@@ -66,5 +64,3 @@ class RedisSessionInterface(SessionInterface):
         response.set_cookie(app.session_cookie_name, session.sid,
                             expires=cookie_exp, httponly=True,
                             domain=domain)
-        logging.debug(session.sid)
-        logging.debug(response)
