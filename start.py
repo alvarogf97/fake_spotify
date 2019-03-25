@@ -2,7 +2,7 @@ import logging
 from tornado.wsgi import WSGIContainer
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
-from app.app import app, music_path
+from app.app import app
 from app.server_configuration import SERVER_PORT
 
 

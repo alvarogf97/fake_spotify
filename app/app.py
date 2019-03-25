@@ -1,7 +1,9 @@
 import logging
+import mimetypes
 import os
+import re
 import redis
-from flask import Flask, session, request, jsonify, Response
+from flask import Flask, session, request, jsonify, Response, stream_with_context, send_file
 from flask_session import Session
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
@@ -179,19 +181,39 @@ def upload_song():
 
 
 @app.route('/group/<string:group_name>/<string:album_name>/<string:song_name>')
+@login_required
 def listen_song(group_name, album_name, song_name):
     from app.models.group import Song
-
     song = Song.get(song_name, album_name, group_name)
-    if song:
-        def generate():
-            count = 1
-            with open(song.path, "rb") as f:
-                data = f.read(1024)
-                while data:
-                    yield data
-                    data = f.read(1024)
-                    count += 1
-        return Response(generate(), mimetype="audio/mp3")
-    else:
-        return jsonify(status=False, error='SONG DOES NOT EXIST')
+    path = song.path
+    range_header = request.headers.get('Range', None)
+    if not range_header:
+        return send_file(path)
+
+    size = os.path.getsize(path)
+    byte1, byte2 = 0, None
+
+    m = re.search('(\d+)-(\d*)', range_header)
+    g = m.groups()
+
+    if g[0]:
+        byte1 = int(g[0])
+    if g[1]:
+        byte2 = int(g[1])
+
+    length = size - byte1
+    if byte2 is not None:
+        length = byte2 - byte1
+
+    with open(path, 'rb') as f:
+        f.seek(byte1)
+        data = f.read(length)
+
+    rv = Response(data,
+                  206,
+                  mimetype=mimetypes.guess_type(path)[0],
+                  direct_passthrough=True)
+    rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(byte1, byte1 + length - 1, size))
+    rv.headers.add('Accept-Ranges', 'bytes')
+    return rv
+
