@@ -1,7 +1,7 @@
 import os
 import logging
 from app.app import db, music_path
-from app.utils.string_utils import crop_withespaces, allowed_file
+from app.utils.string_utils import crop_withespaces, allowed_file, crop_extension
 from werkzeug.utils import secure_filename
 
 
@@ -9,23 +9,27 @@ class Group(db.Document):
 
     name = db.StringField()
     path = db.StringField()
+    path_img = db.StringField()
 
     @staticmethod
     def c_make(name: str, path: str):
         new_group = None
         if Group.query.filter(Group.name == name).first() is None:
-            new_group = Group(name=name, path=path)
+            photo_path = path + '/photo.jpg'
+            new_group = Group(name=name, path=path, path_img=photo_path)
             new_group.save()
         return new_group
 
     @staticmethod
-    def make(name: str):
+    def make(name: str, img):
         new_group = None
         if Group.query.filter(Group.name == name).first() is None:
             path = music_path + '/' + crop_withespaces(name)
-            new_group = Group(name=name, path=path)
+            photo_path = path + '/photo.jpg'
+            new_group = Group(name=name, path=path, path_img=photo_path)
             new_group.save()
             os.mkdir(path)
+            img.save(photo_path)
         return new_group
 
     @staticmethod
@@ -33,7 +37,7 @@ class Group(db.Document):
         return Group.query.filter(Group.name == name).first()
 
     @staticmethod
-    def get_groups(offset: int):
+    def get_groups():
         return Group.query.filter().all()
 
     @staticmethod
@@ -56,7 +60,7 @@ class Album(db.Document):
     path = db.StringField()
 
     @staticmethod
-    def c_make(name: str, group_name: str, path:str):
+    def c_make(name: str, group_name: str, path: str):
         group = Group.get(group_name)
         new_album = None
         if group is not None and Album.query.filter(Album.name == name, Album.group == group).first() is None:
@@ -110,6 +114,7 @@ class Song(db.Document):
     name = db.StringField()
     album = db.DocumentField(Album)
     path = db.StringField()
+    url = db.StringField()
 
     @staticmethod
     def c_make(name: str, album_name: str, group_name: str, path: str):
@@ -117,7 +122,8 @@ class Song(db.Document):
         new_song = None
         if album is not None and Song.query.filter(Song.path == path).first() is None:
             if allowed_file(name):
-                new_song = Song(name=os.path.splitext(name)[0], album=album, path=path)
+                url = group_name + '/' + album_name + '/' + crop_extension(name)
+                new_song = Song(name=os.path.splitext(name)[0], album=album, path=path, url=url)
                 new_song.save()
         return new_song
 
@@ -129,14 +135,15 @@ class Song(db.Document):
             logging.debug(song_file.filename)
             logging.debug(song_file)
             if allowed_file(song_file.filename):
+                url = group_name + '/' + album_name + '/' + name
                 path = album.path + '/' + secure_filename(song_file.filename)
-                new_song = Song(name=name, album=album, path=path)
+                new_song = Song(name=name, album=album, path=path, url=url)
                 new_song.save()
                 song_file.save(path)
         return new_song
 
     @staticmethod
-    def get(name: str, album_name: str, group_name:str):
+    def get(name: str, album_name: str, group_name: str):
         album = Album.get(album_name, group_name)
         if album:
             return Song.query.filter(Song.name == name, Song.album == album).first()
@@ -162,4 +169,5 @@ class Song(db.Document):
         json_result = dict()
         json_result['name'] = self.name
         json_result['album'] = self.album.json()
+        json_result['url'] = self.url
         return json_result

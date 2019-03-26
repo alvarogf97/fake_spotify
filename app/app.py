@@ -1,9 +1,8 @@
-import logging
 import mimetypes
 import os
 import re
 import redis
-from flask import Flask, session, request, jsonify, Response, stream_with_context, send_file
+from flask import Flask, session, request, jsonify, Response, send_file
 from flask_session import Session
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
@@ -93,10 +92,11 @@ def create_group():
     from app.models.group import Group
 
     name = request.form.get('name')
-    if name is None:
+    img = request.files.get('photo')
+    if name is None or img:
         result = jsonify(status=False, error="NOT ENOUGH ARGUMENTS")
     else:
-        new_group = Group.make(name)
+        new_group = Group.make(name, img)
         if new_group is None:
             result = jsonify(status=False, error="GROUP ALREADY EXISTS")
         else:
@@ -104,14 +104,22 @@ def create_group():
     return result
 
 
+@app.route('/<string:group_name>/image', methods=['GET'])
+@login_required
+def get_group_image(group_name):
+    from app.models.group import Group
+    group = Group.get(group_name)
+    if group and os.path.isfile(group.path_img):
+        return send_file(group.path_img, mimetype=mimetypes.guess_type(group.path_img)[0])
+    else:
+        return jsonify(status=False, error="WRONG IMAGE PATH")
+
+
 @app.route('/group', methods=['GET'])
 @login_required
 def get_groups():
     from app.models.group import Group
-    offset = request.args.get('offset')
-    if offset is None:
-        offset = 0
-    return jsonify(groups=Group.parse_list(Group.get_groups(offset)), status=True)
+    return jsonify(groups=Group.parse_list(Group.get_groups()), status=True)
 
 
 @app.route('/group/<string:group_name>', methods=['GET'])
@@ -180,7 +188,7 @@ def upload_song():
     return result
 
 
-@app.route('/group/<string:group_name>/<string:album_name>/<string:song_name>')
+@app.route('/<string:group_name>/<string:album_name>/<string:song_name>')
 @login_required
 def listen_song(group_name, album_name, song_name):
     from app.models.group import Song
@@ -216,4 +224,3 @@ def listen_song(group_name, album_name, song_name):
     rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(byte1, byte1 + length - 1, size))
     rv.headers.add('Accept-Ranges', 'bytes')
     return rv
-

@@ -33,7 +33,7 @@ def migrate_db():
 
 
 if __name__ == '__main__':
-    #  migrate_db()
+    migrate_db()
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     http_server = HTTPServer(WSGIContainer(app))

@@ -12,3 +12,7 @@ def uncrop_withespaces(string: str):
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def crop_extension(filename):
+    return '.'.join(filename.split('.')[:-1])
